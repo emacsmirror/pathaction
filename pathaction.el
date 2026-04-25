@@ -156,7 +156,7 @@ The message is formatted with the provided arguments ARGS."
       (let ((win (get-buffer-window buffer 0)))
         (when (and (window-live-p win)
                    pathaction-close-window-after-execution
-                   (not (one-window-p t)))
+                   (window-deletable-p win))
           (delete-window win)))
       (kill-buffer buffer)))
   (setq pathaction--active-buffers
