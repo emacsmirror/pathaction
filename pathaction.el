@@ -71,12 +71,26 @@ back to the previously displayed buffer instead of closing it."
   :type 'boolean
   :group 'pathaction)
 
+(defvar term-escape-char)
+
 (defun pathaction--default-ansi-term (command name)
   "Default function to run COMMAND in `ansi-term' named NAME."
-  (let ((term-buffer (ansi-term shell-file-name name)))
-    (process-send-string (get-buffer-process term-buffer)
-                         (concat command "; exit\n"))
-    term-buffer))
+  (require 'term)
+  (when (and (fboundp 'term-mode)
+             (fboundp 'term-char-mode)
+             (fboundp 'term-ansi-make-term))
+    (let* ((term-name (generate-new-buffer-name (concat "*" name "*")))
+           (shell-args (list "-c" command))
+           (term-buffer (apply #'term-ansi-make-term term-name shell-file-name
+                               nil shell-args)))
+      (with-current-buffer term-buffer
+        (term-mode)
+        (term-char-mode)
+        (when (and (fboundp 'term-set-escape-char))
+          (let (term-escape-char)
+            (term-set-escape-char ?\C-x))))
+      (pop-to-buffer term-buffer)
+      term-buffer)))
 
 (defvar pathaction-term-function #'pathaction--default-ansi-term
   "The function used to create and execute the terminal.
