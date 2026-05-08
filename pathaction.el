@@ -79,7 +79,8 @@ back to the previously displayed buffer instead of closing it."
   (when (and (fboundp 'term-mode)
              (fboundp 'term-char-mode)
              (fboundp 'term-ansi-make-term))
-    (let* ((term-name (generate-new-buffer-name (concat "*" name "*")))
+    (let* ((inhibit-redisplay t)
+           (term-name (generate-new-buffer-name (concat "*" name "*")))
            (shell-args (list "-c" command))
            (term-buffer (apply #'term-ansi-make-term term-name shell-file-name
                                nil shell-args)))
@@ -141,7 +142,8 @@ The message is formatted with the provided arguments ARGS."
 
 (defun pathaction--kill-hidden-pathaction-buffers ()
   "Kill pathaction buffers that are no longer displayed in any window."
-  (let ((window-configuration-change-hook nil) ; Prevents an infinite loop
+  (let ((inhibit-redisplay t)
+        (window-configuration-change-hook nil) ; Prevents an infinite loop
         (kept-buffers nil))
     (dolist (buf pathaction--active-buffers)
       (when (buffer-live-p buf)
@@ -165,19 +167,20 @@ The message is formatted with the provided arguments ARGS."
 
 (defun pathaction-quit (buffer)
   "Quit pathaction running in BUFFER."
-  (when (buffer-live-p buffer)
-    (when (buffer-local-value 'pathaction--enabled buffer)
-      (let ((win (get-buffer-window buffer 0)))
-        (when (and (window-live-p win)
-                   pathaction-close-window-after-execution
-                   (eq (window-deletable-p win) t))
-          (delete-window win)))
-      (kill-buffer buffer)))
-  (setq pathaction--active-buffers
-        (seq-filter #'buffer-live-p pathaction--active-buffers))
-  (unless pathaction--active-buffers
-    (remove-hook 'window-configuration-change-hook
-                 #'pathaction--kill-hidden-pathaction-buffers)))
+  (let ((inhibit-redisplay t))
+    (when (buffer-live-p buffer)
+      (when (buffer-local-value 'pathaction--enabled buffer)
+        (let ((win (get-buffer-window buffer 0)))
+          (when (and (window-live-p win)
+                     pathaction-close-window-after-execution
+                     (eq (window-deletable-p win) t))
+            (delete-window win)))
+        (kill-buffer buffer)))
+    (setq pathaction--active-buffers
+          (seq-filter #'buffer-live-p pathaction--active-buffers))
+    (unless pathaction--active-buffers
+      (remove-hook 'window-configuration-change-hook
+                   #'pathaction--kill-hidden-pathaction-buffers))))
 
 (defun pathaction--run-using-terminal (command name term-function)
   "Run COMMAND using the terminal opened by `pathaction-term-function'.
