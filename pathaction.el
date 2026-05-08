@@ -73,14 +73,26 @@ back to the previously displayed buffer instead of closing it."
 
 (defvar term-escape-char)
 
-(defun pathaction--default-ansi-term (command name)
+(defcustom pathaction-term-shell (or (bound-and-true-p explicit-shell-file-name)
+                                     shell-file-name)
+  "Shell used by the terminal emulator to execute the pathaction command."
+  :type 'string
+  :group 'pathaction)
+
+(define-obsolete-function-alias
+  'pathaction--default-ansi-term
+  'pathaction-ansi-term
+  "1.0.2")
+
+(defun pathaction-ansi-term (command name)
   "Default function to run COMMAND in `ansi-term' named NAME."
   (require 'term)
   (when (and (fboundp 'term-mode)
              (fboundp 'term-char-mode)
              (fboundp 'term-ansi-make-term))
     (let* ((inhibit-redisplay t)
-           (term-name (generate-new-buffer-name (concat "*" name "*")))
+           (term-name (generate-new-buffer-name
+                       (concat "*" name "*")))
            (shell-args (list "-c" command))
            (term-buffer (apply #'term-ansi-make-term term-name shell-file-name
                                nil shell-args)))
@@ -93,14 +105,51 @@ back to the previously displayed buffer instead of closing it."
       (pop-to-buffer term-buffer)
       term-buffer)))
 
-(defvar pathaction-term-function #'pathaction--default-ansi-term
+(defun pathaction-vterm (command name)
+  "Run COMMAND in `vterm' named NAME."
+  (if (require 'vterm nil t)
+      (when (and (fboundp 'vterm))
+        (let* ((inhibit-redisplay t)
+               (vterm-shell command)
+               (vterm-buffer-name (generate-new-buffer-name
+                                   (concat "*" name "*")))
+               (term-buffer (vterm vterm-buffer-name)))
+          (ignore vterm-shell)
+          (pop-to-buffer term-buffer)
+          term-buffer))
+    (error "vterm is not available")))
+
+(defun pathaction-eat (command name)
+  "Run COMMAND in `eat' named NAME."
+  (if (require 'eat nil t)
+      (when (fboundp 'eat)
+        (let* ((inhibit-redisplay t)
+               (eat-buffer-name (generate-new-buffer-name
+                                 (concat "*" name "*")))
+               (term-buffer (eat command eat-buffer-name)))
+          (pop-to-buffer term-buffer)
+          term-buffer))
+    (error "eat is not available")))
+
+(defcustom pathaction-term-function #'pathaction-ansi-term
   "The function used to create and execute the terminal.
-Defaults to `pathaction--default-ansi-term'.
 
 - This function should return the terminal buffer.
 - This function takes the command to execute as the first argument and the name
   of the buffer as the second argument.
-  Example: (function-name command buffername)")
+  Example: (function-name command buffername)"
+  :type '(choice (function-item :tag "ansi-term (Default)" pathaction-ansi-term)
+                 (function-item :tag "vterm (Requires vterm package)" pathaction-vterm)
+                 (function-item :tag "eat (Requires eat package)" pathaction-eat)
+                 (function :tag "Custom function"))
+  :group 'pathaction)
+
+(defcustom pathaction-cleanup-buffer-at-process-exit t
+  "If non-nil, close the terminal and kill the buffer when the process exits.
+Set this to nil if you want the window to remain open so you can read the
+output."
+  :type 'boolean
+  :group 'pathaction)
 
 ;; Silence warnings
 (defvar term-suppress-hard-newline)
@@ -207,12 +256,14 @@ TERM-FUNCTION is the function that executes a terminal."
 
       (push term-buffer pathaction--active-buffers)
 
-      (set-process-sentinel term-buffer-process
-                            (lambda (process _event)
-                              (when (and (buffer-live-p term-buffer)
-                                         (memq (process-status process)
-                                               '(exit signal)))
-                                (pathaction-quit (process-buffer process))))))))
+      (set-process-sentinel
+       term-buffer-process
+       (lambda (process _event)
+         (when (and (buffer-live-p term-buffer)
+                    (memq (process-status process)
+                          '(exit signal)))
+           (when pathaction-cleanup-buffer-at-process-exit
+             (pathaction-quit (process-buffer process)))))))))
 
 (defun pathaction--buffer-path ()
   "Return the full path of the current buffer.

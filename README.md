@@ -61,7 +61,31 @@ The command prompts for selection of one of the rule-set files found in the curr
 
 ## Customization
 
-## Making pathaction open a window under the current one?
+### Configuration Options
+
+#### `pathaction-term-shell` (Default: `explicit-shell-file-name` or `shell-file-name`)
+
+The shell used by the terminal emulator to execute the `pathaction` command (e.g., `"/bin/bash"` or `"/bin/zsh"`).
+
+#### `pathaction-term-function` (Default: `#'pathaction-ansi-term`)
+
+The function used to create and execute the terminal. By default, it uses `#'pathaction-ansi-term`. You can customize this to use faster, third-party terminal emulators like:
+- `#'pathaction-eat`
+- `#'pathaction-vterm`
+
+#### `pathaction-cleanup-buffer-at-process-exit` (Default: `t`)
+
+If non-nil, automatically closes the terminal and kills the buffer when the process exits. Set this to `nil` if you want the window to remain open so you can inspect the output.
+
+#### `pathaction-close-window-after-execution` (Default: `t`)
+
+If non-nil, the pathaction window will be closed once execution is complete.
+
+#### `pathaction-keep-buffer-when-process-running` (Default: `t`)
+
+If non-nil, keeps hidden pathaction buffers alive if they have an active process.
+
+### Making pathaction open a window under the current one
 
 To configure `pathaction` to open its window under the current one, you can use the `display-buffer-alist` variable to customize how the `pathaction` buffer is displayed. Specifically, you can use the `display-buffer-at-bottom` action, which will display the buffer in a new window at the bottom of the current frame.
 
