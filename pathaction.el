@@ -158,11 +158,10 @@ output."
   "Save the current buffer if it is visiting a file."
   (let* ((base-buffer (buffer-base-buffer))
          (file-name (buffer-file-name base-buffer))
+         (save-silently t)
          (inhibit-message t))
     (when file-name
-      (with-current-buffer (or base-buffer
-                               (current-buffer))
-        (save-buffer)))))
+      (save-buffer))))
 
 (defcustom pathaction-before-run-hook '(pathaction-save-buffer)
   "Hooks to run before `pathaction-run' executes the `pathaction' command."
